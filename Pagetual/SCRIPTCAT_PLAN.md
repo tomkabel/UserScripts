@@ -206,3 +206,52 @@ win (per the bundled skill).
    isolate, and make ScriptCat the tested target.
 3. Where the harness lives: ScriptCat's gitignored scratch (throwaway) or `Pagetual/test/scriptcat/` in this
    repo. Recommendation: scratch first, promote only after Phase 0 finds a defect.
+
+## Part 6. Results (2026-11-13, ScriptCat `3a584125`, Chromium 1248)
+
+Judge: `node Pagetual/test/scriptcat/run.mjs` installs the script through ScriptCat's real install page, completes
+first-run onboarding by clicking the import button on a stub of the guide page, and runs the fixtures against local
+servers (page origin, a second host via `--host-resolver-rules`, and the guide on its own host). CI:
+`.github/workflows/pagetual-scriptcat.yml` (pinned commit on change, ScriptCat `main` weekly).
+
+Matrix, current script 16/16. The pre-change script (`HEAD` before this work) fails 3 of them, so the harness
+can tell the two apart:
+
+| Fixture | Before | After |
+|---|---|---|
+| F9 first-run import, F0 inject, F1 rel=next, F5 cross-host, F4 GBK (header / no header), F6 tiny cross-origin frame, F7 SPA, F8 persistence, F10 menus, F12 update detection, M payload budget | pass | pass |
+| F3 rule JS under `script-src 'self'` | fail (`EvalError`, rule ignored) | pass |
+| F3 rule JS under Trusted Types | fail | pass |
+| F13 site toggle: other tab stops live, label flips in place | fail (not implemented) | pass |
+
+What changed in `pagetual.user.js`:
+
+- Phase 1: `document.readyState` typo fixed; unaudited mirrors `ghproxy.com`/`ghp.ci` dropped from `@connect`
+  (no code references them); comment on why `@connect *` stays and why there is no `@noframes`. The named hosts stay:
+  they save Tampermonkey users a prompt.
+- Phase 2a: `Function`/`AsyncFunction` are shadowed inside the IIFE by one `compileRule`. It tries native compile; on
+  a CSP/Trusted Types block it defines the function through `GM_addElement('script')` and caches it, else logs one
+  CSP notice. All 20 call sites are untouched, so upstream syncs still merge. New grant: `GM_addElement`.
+- Phase 4: the disable/enable menu entry re-registers with `id` on ScriptCat/Tampermonkey so its label follows the
+  state; `GM_addValueChangeListener("forceState")` applies a site toggle to other open tabs. New grant:
+  `GM_addValueChangeListener`.
+
+Corrections to Parts 1 to 3, from running it:
+
+- `@connect *` is present (line 101). Cross-host next pages load via ScriptCat's background XHR with no prompt.
+- Charset: a header that contradicts the bytes is not a Pagetual bug; browsers let the header win too. Correct and
+  missing headers both decode.
+- Small frames: Pagetual exits only in tiny cross-origin frames; same-origin tiny frames run by design.
+
+Skipped by the plan's own conditions, with the measurement:
+
+- 2b storage batching: all serial reads after rules load take 4 ms total.
+- Phase 3: script start (~100 ms) and rules-ready (~430 ms after navigation, including upstream's deliberate
+  `setTimeout(init, 300)`) are the same with an empty store and with the real 682-rule feed stored. Nothing to win.
+- `window.onurlchange`: F7 passes. `scriptHandler` quirk branch: Pagetual never writes `undefined`.
+- Phase 5 (modules, ESLint gate): deferred per Decision 1. ScriptCat's ESLint config reports 31 errors, all upstream
+  style (26 `no-useless-escape`); none is a bug (`src = src` reloads a frame on purpose). Fixing them would conflict
+  with every upstream sync.
+
+Not covered: Firefox. Playwright cannot load an extension into Firefox; covering it needs `web-ext run` plus a
+Marionette driver. Live-site behaviour of the 682 rules is out of scope, as stated in Part 4.

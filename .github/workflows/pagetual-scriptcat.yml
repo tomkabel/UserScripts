@@ -1,0 +1,66 @@
+name: Pagetual on ScriptCat
+
+# Runs pagetual.user.js inside a real ScriptCat build (Chromium) against the local fixtures in
+# Pagetual/test/scriptcat/run.mjs. Pinned ScriptCat on every change; ScriptCat main weekly, to catch
+# manager-side regressions before users do.
+on:
+  push:
+    paths:
+      - 'Pagetual/pagetual.user.js'
+      - 'Pagetual/test/scriptcat/**'
+      - '.github/workflows/pagetual-scriptcat.yml'
+  pull_request:
+    paths:
+      - 'Pagetual/pagetual.user.js'
+      - 'Pagetual/test/scriptcat/**'
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+jobs:
+  matrix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Pinned commit the matrix was baselined on; scheduled runs use main instead.
+      SCRIPTCAT_REF: ${{ github.event_name == 'schedule' && 'main' || '3a584125' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: scriptscat/scriptcat
+          ref: main
+          fetch-depth: 0
+          path: scriptcat
+
+      - name: Check out ScriptCat ref
+        run: git -C scriptcat checkout "$SCRIPTCAT_REF"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: scriptcat/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: scriptcat/pnpm-lock.yaml
+
+      - name: Build ScriptCat
+        working-directory: scriptcat
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm run build
+          pnpm exec playwright install --with-deps chromium
+
+      - name: Run matrix
+        env:
+          SCRIPTCAT_DIR: ${{ github.workspace }}/scriptcat
+        run: node Pagetual/test/scriptcat/run.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pagetual-scriptcat-results
+          path: Pagetual/test/scriptcat/out/results.json

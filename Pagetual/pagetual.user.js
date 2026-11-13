@@ -31,7 +31,7 @@
 // @name:da      Pagetual
 // @name:fr-CA   Pagetual
 // @namespace    tomkabel
-// @version      1.9.37.134.1
+// @version      1.9.37.134.2
 // @description  Perpetual pages - powerful auto-pager script. Auto fetching next paginated web pages and inserting into current page for infinite scroll. Support thousands of web sites without any rule.
 // @description:zh-CN  终极自动翻页 - 加载并拼接下一分页内容至当前页尾，智能适配任意网页
 // @description:zh-TW  終極自動翻頁 - 加載並拼接下一分頁內容至當前頁尾，智能適配任意網頁
@@ -77,6 +77,8 @@
 // @grant        GM_deleteValue
 // @grant        GM_info
 // @grant        GM_setClipboard
+// @grant        GM_addElement
+// @grant        GM_addValueChangeListener
 // @grant        GM.xmlHttpRequest
 // @grant        GM.registerMenuCommand
 // @grant        GM.notification
@@ -93,12 +95,12 @@
 // @downloadURL  https://tomkabel.github.io/UserScripts/Pagetual/pagetual.user.js
 // @connect      wedata.net
 // @connect      githubusercontent.com
-// @connect      ghproxy.com
-// @connect      ghp.ci
 // @connect      tomkabel.github.io
 // @connect      cdn.jsdelivr.net
 // @run-at       document-end
 // @connect      *
+// Named @connect hosts above spare Tampermonkey users a prompt for rule fetches; * is required because next pages
+// can live on any origin. No @noframes: the pagetual-iframe protocol needs the script inside its own frames.
 // @contributionURL      https://ko-fi.com/hoothin
 // @contributionAmount   1
 // ==/UserScript==
@@ -126,7 +128,7 @@
             pauseVideo();
         } else {
             domloaded();
-            if (document.readystate === 'complete') {
+            if (document.readyState === 'complete') {
                 pauseVideo();
             } else {
                 window.addEventListener('load', () => {
@@ -4445,6 +4447,8 @@
     } else {
         _GM_setClipboard = (s, i) => {debug(s); debug(i);};
     }
+    // Synchronous only (compileRule needs the element at once), so no GM.addElement promise fallback.
+    const _GM_addElement = (typeof GM_addElement === 'function') ? GM_addElement : () => null;
     const _unsafeWindow = (typeof unsafeWindow === 'undefined') ? window : unsafeWindow;//兼容 ios userscripts 的寫法
     const storage = {
         supportGM: typeof GM_getValue === 'function' && typeof GM_getValue('a', 'b') !== 'undefined',
@@ -5006,7 +5010,44 @@
         target.appendChild(fragment);
     }
 
-    const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+    // Rule fields carry JS source. A page CSP without 'unsafe-eval' (or with Trusted Types) blocks Function() in the
+    // page world, where ScriptCat and others inject. Fall back to defining the function through a <script> that the
+    // manager inserts from its own world (GM_addElement). Shadowing Function/AsyncFunction keeps every call site as is.
+    const NativeFunction = Object.getPrototypeOf(function(){}).constructor;
+    const NativeAsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+    const ruleFnCache = new Map();
+    let evalBlocked = false, ruleFnSeq = 0, cspNoticeShown = false;
+    function compileRule(isAsync, args) {
+        if (!evalBlocked) {
+            try {
+                return (isAsync ? NativeAsyncFunction : NativeFunction)(...args);
+            } catch (e) {
+                if (e instanceof SyntaxError) throw e;
+                evalBlocked = true;
+            }
+        }
+        const key = (isAsync ? "a" : "s") + args.join("\u0000");
+        let fn = ruleFnCache.get(key);
+        if (fn) return fn;
+        const name = "__pagetualRule" + (++ruleFnSeq) + "_" + Math.random().toString(36).slice(2);
+        try {
+            const script = _GM_addElement("script", {textContent: `window.${name}=${isAsync ? "async " : ""}function(${args.slice(0, -1).join(",")}){${args[args.length - 1]}\n};`});
+            if (script && script.parentNode) script.parentNode.removeChild(script);
+            fn = _unsafeWindow[name];
+            delete _unsafeWindow[name];
+        } catch (e) {}
+        if (typeof fn !== "function") {
+            if (!cspNoticeShown) {
+                cspNoticeShown = true;
+                debug("This page's Content Security Policy blocks rule scripts and the userscript manager could not bypass it", "CSP");
+            }
+            throw new EvalError("Pagetual rule blocked by Content Security Policy");
+        }
+        ruleFnCache.set(key, fn);
+        return fn;
+    }
+    function Function(...args) { return compileRule(false, args); }
+    function AsyncFunction(...args) { return compileRule(true, args); }
 
     async function sleep(time) {
         await new Promise((resolve) => {
@@ -11146,24 +11187,38 @@
                         debug(err);
                     });
                 });
-                _GM_registerMenuCommand(i18n(forceState == 1 ? "enable" : "disableSite"), () => {
+                // ScriptCat and Tampermonkey replace a command registered with the same id, so the label can follow the state.
+                const menuUpdatesById = /^(ScriptCat|Tampermonkey)$/.test(_GM_info.scriptHandler || "");
+                const applySiteState = state => {
+                    forceState = state;
                     if (forceState == 1) {
-                        forceState = 0;
-                        showTips(i18n("enableSiteTips"));
-                        changeStop(false, true);
-                    } else {
-                        forceState = 1;
-                        showTips(i18n("disableSiteTips"));
                         changeStop(true);
                         sideController.remove();
+                    } else {
+                        changeStop(false, true);
                     }
+                    if (menuUpdatesById) registerSiteToggle();
+                };
+                const registerSiteToggle = () => _GM_registerMenuCommand(i18n(forceState == 1 ? "enable" : "disableSite"), () => {
+                    showTips(i18n(forceState == 1 ? "enableSiteTips" : "disableSiteTips"));
+                    applySiteState(forceState == 1 ? 0 : 1);
                     setListData("forceState", location.host, forceState);
                     if (!ruleParser.curSiteRule.url) {
                         setTimeout(() => {
                             location.reload();
                         }, 300);
                     }
-                });
+                }, {id: "pagetual-site-toggle"});
+                registerSiteToggle();
+                // Disabling or enabling a site in one tab applies to its other open tabs without a reload.
+                if (typeof GM_addValueChangeListener === 'function') {
+                    GM_addValueChangeListener("forceState", (name, oldValue, newValue, remote) => {
+                        if (!remote) return;
+                        let entry = (newValue || []).find(d => d && d.k === location.host);
+                        let state = entry ? entry.v : (rulesData.enableWhiteList ? 1 : 0);
+                        if (state != forceState) applySiteState(state);
+                    });
+                }
                 if (forceState == 1) {
                     let tempActive = await getListData("tempActive", location.host + location.pathname);
                     if (tempActive) {
