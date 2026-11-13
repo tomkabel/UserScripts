@@ -1,50 +1,54 @@
-name: Collect wedata for pagetual
+name: Sync Pagetual rules from upstream
+
+# wedata.net no longer resolves, and a blind mirror of it published an empty
+# items_all.json upstream (2026-11-05). This job pulls hoothin's rule files and
+# only commits them if they pass the same gate the Pages deploy uses.
 
 on:
   schedule:
-    - cron:  '0 1 * * *'
+    - cron: '0 1 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
+concurrency:
+  group: pagetual-rules
+  cancel-in-progress: false
+
 jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
+  sync:
     runs-on: ubuntu-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
-    #- name: Download json
-    #  run: |
-    #    wget --no-cache -O "Pagetual/items_all.json" http://wedata.net/databases/AutoPagerize/items_all.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
-    #- uses: technote-space/get-diff-action@v6
-    #  with:
-    #    FILES: |
-    #      items_all.json
+      - name: Fetch upstream rule files
+        run: |
+          mkdir -p "$RUNNER_TEMP/upstream"
+          for f in pagetualRules.json items_all.json; do
+            curl -fsSL --retry 3 -o "$RUNNER_TEMP/upstream/$f" \
+              "https://raw.githubusercontent.com/hoothin/UserScripts/master/Pagetual/$f"
+          done
 
-    #- name: Commit
-    #  if: env.GIT_DIFF
-    #  run: |
-    #    git config user.name "github-actions[bot]"
-    #    git config user.email "512946+github-actions[bot]@users.noreply.github.com"
-    #    git add Pagetual/items_all.json
-    #    git status
-    #    git commit -m "auto commit from github actions" 
-        
-    #- name: Push
-    #  if: env.GIT_DIFF
-    #  uses: ad-m/github-push-action@master
-    #  with:
-    #    github_token: ${{ secrets.GITHUB_TOKEN }}
-    #    branch: master
-    - name: Update file
-      id: update_file
-      uses: TheLastProject/keep-remote-file-locally-up-to-date-action@v1
-      with:
-        url: http://wedata.net/databases/AutoPagerize/items_all.json
-        file_in_repo: Pagetual/items_all.json
-        git_user: hoothin-update
-        git_email: rixixi@gmail.com
+      - name: Validate (rejects empty, malformed, schema-failing or >10% shrunk files)
+        run: node .github/scripts/validate-pagetual.mjs files "$RUNNER_TEMP/upstream" --baseline Pagetual
+
+      - name: Commit and bump version if changed
+        run: |
+          # ponytail: verbatim overwrite drops fork-local edits to these two files;
+          # keep fork-only rules in a separate rules URL if that ever matters.
+          cp "$RUNNER_TEMP/upstream/"*.json Pagetual/
+          if git diff --quiet -- Pagetual; then
+            echo "No upstream change."
+            exit 0
+          fi
+          echo $(( $(cat Pagetual/version) + 1 )) > Pagetual/version
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Pagetual
+          git commit -m "Sync Pagetual rules from upstream (version $(cat Pagetual/version))"
+          git push

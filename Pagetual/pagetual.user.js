@@ -30,8 +30,8 @@
 // @name:nl      Pagetual
 // @name:da      Pagetual
 // @name:fr-CA   Pagetual
-// @namespace    hoothin
-// @version      1.9.37.134
+// @namespace    tomkabel
+// @version      1.9.37.134.1
 // @description  Perpetual pages - powerful auto-pager script. Auto fetching next paginated web pages and inserting into current page for infinite scroll. Support thousands of web sites without any rule.
 // @description:zh-CN  终极自动翻页 - 加载并拼接下一分页内容至当前页尾，智能适配任意网页
 // @description:zh-TW  終極自動翻頁 - 加載並拼接下一分頁內容至當前頁尾，智能適配任意網頁
@@ -87,13 +87,16 @@
 // @grant        GM.deleteValue
 // @grant        GM.info
 // @grant        GM.setClipboard
-// @homepage     https://github.com/hoothin/UserScripts/tree/master/Pagetual
-// @supportURL   https://github.com/hoothin/UserScripts/issues
+// @homepage     https://github.com/tomkabel/UserScripts/tree/master/Pagetual
+// @supportURL   https://github.com/tomkabel/UserScripts/issues
+// @updateURL    https://tomkabel.github.io/UserScripts/Pagetual/pagetual.user.js
+// @downloadURL  https://tomkabel.github.io/UserScripts/Pagetual/pagetual.user.js
 // @connect      wedata.net
 // @connect      githubusercontent.com
 // @connect      ghproxy.com
 // @connect      ghp.ci
-// @connect      hoothin.github.io
+// @connect      tomkabel.github.io
+// @connect      cdn.jsdelivr.net
 // @run-at       document-end
 // @connect      *
 // @contributionURL      https://ko-fi.com/hoothin
@@ -4537,15 +4540,21 @@
         });
     }
     const isMobile = ('ontouchstart' in document.documentElement && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
-    const cnConfigPage = "https://pagetual.hoothin.com/cn/rule.html";
-    const configPage = ["https://pagetual.hoothin.com/rule.html",
-                        "https://github.com/hoothin/UserScripts/tree/master/Pagetual",
-                        "https://hoothin.github.io/UserScripts/Pagetual/"];
-    const firstRunPage = "https://pagetual.hoothin.com/firstRun";
+    // Fork endpoints: the single source of truth for every repo/rules/guide URL below.
+    const forkRepo = "https://github.com/tomkabel/UserScripts";
+    const rulesBase = "https://tomkabel.github.io/UserScripts/Pagetual/";
+    const rulesCdnBase = "https://cdn.jsdelivr.net/gh/tomkabel/UserScripts@master/Pagetual/";
+    const guideBase = "https://tomkabel.github.io/PagetualGuide/";
+    const cnConfigPage = guideBase + "cn/rule.html";
+    const configPage = [guideBase + "rule.html",
+                        forkRepo + "/tree/master/Pagetual",
+                        rulesBase];
+    const firstRunPage = guideBase + "firstRun.html";
     const wedataRulesUrl = "http://wedata.net/databases/AutoPagerize/items_all.json";
-    const wedataMirrorRulesUrl = "https://hoothin.github.io/UserScripts/Pagetual/items_all.json";
+    const wedataMirrorRulesUrl = rulesBase + "items_all.json";
+    const ruleRequestUrl = forkRepo + "/issues/new?labels=Pagetual&template=custom-rule-request.md&title=Request%20Pagetual%20support%20for%20";
     const guidePage = /^https?:\/\/.*pagetual.*rule\.html/i;
-    const ruleImportUrlReg = /greasyfork\.org\/.*scripts\/438684(\-[^\/]*)?(\/discussions|\/?$|\/feedback)|github\.com\/hoothin\/UserScripts\/(tree\/master\/Pagetual|issues)|^https:\/\/pagetual\.hoothin\.com\/.*first(Run|-run)\.html/i;
+    const ruleImportUrlReg = /github\.com\/tomkabel\/UserScripts\/(tree\/master\/Pagetual|issues)|^https:\/\/tomkabel\.github\.io\/PagetualGuide\/.*first(Run|-run)\.html/i;
     const allOfBody = "body>*";
     const mainSel = ["article,.article","[role=main],main,.main,#main","#results"];
     const nextTextReg1 = new RegExp("\u005e\u7ffb\u003f\u005b\u4e0b\u540e\u5f8c\u6b21\u005d\u005b\u4e00\u30fc\u2500\u0031\u005d\u003f\u005b\u9875\u9801\u5f20\u5f35\u005d\u007c\u005e\u006e\u0065\u0078\u0074\u005b\u005c\u0073\u005f\u002d\u005d\u003f\u0070\u0061\u0067\u0065\u005c\u0073\u002a\u005b\u203a\u003e\u2192\u00bb\u005d\u003f\u0024\u007c\u6b21\u306e\u30da\u30fc\u30b8\u007c\u005e\u6b21\u3078\u0024\u007c\u0412\u043f\u0435\u0440\u0435\u0434\u007c\u005e\u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0435", "i");
@@ -4553,7 +4562,7 @@
     const nextTextReg3 = /^(next\s*(»|>>|>|›|→|❯|\d+)?|&gt;|▶|>|›|→|❯)\s*$/i;
     const prevReg = new RegExp("\u005e\u005c\u0073\u002a\u0028\u005b\u4e0a\u524d\u9996\u5c3e\u005d\u007c\u0070\u0072\u0065\u0076\u007c\u0065\u006e\u0064\u0029", "i");
     const lazyImgAttr = ["data-lazy-src", "data-s", "data-lazy", "data-isrc", "data-url", "data-orig-file", "zoomfile", "file", "original", "load-src", "imgsrc", "real_src", "src2", "origin-src", "data-lazyload", "data-lazyload-src", "data-lazy-load-src", "data-ks-lazyload", "data-ks-lazyload-custom", "data-src", "data-defer-src", "data-actualsrc", "data-cover", "data-original", "data-thumb", "data-imageurl", "data-placeholder", "lazysrc"];
-    var rulesData = {uninited: true, firstRun: true, sideController: !isMobile}, ruleUrls, updateDate, loadNowNum = 5, autoScrollRate = 50;
+    var rulesData = {uninited: true, firstRun: true, sideController: !isMobile, wedata2github: true}, ruleUrls, updateDate, loadNowNum = 5, autoScrollRate = 50;
     var isPause = false, manualPause = false, isHideBar = false, isLoading = false, curPage = 1, forceState = 0, autoScroll = 0, autoScrollInterval, bottomGap = 1000, autoLoadNum = -1, initAutoLoadNum = 0, nextIndex = 0, stopScroll = false, clickMode = false, openInNewTab = 0, charset = "UTF-8", charsetValid = true, urlWillChange = false, hidePageBar = false;
     var tryTimes = 0, showedLastPageTips = false, rate = 1, author = '';
 
@@ -9044,7 +9053,7 @@
             let addPageSelector = frame.querySelector("#addPageSelector");
             let ruleRequestBtn = frame.querySelector("#ruleRequest");
             ruleRequestBtn.addEventListener("click", e => {
-                _GM_openInTab("https://github.com/hoothin/UserScripts/issues/new?labels=Pagetual&template=custom-rule-request.md&title=Request%20Pagetual%20support%20for%20" + location.hostname + "#" + location.href, {active: true});
+                _GM_openInTab(ruleRequestUrl + location.hostname + "#" + location.href, {active: true});
             }, true);
             autoScrollBtn.addEventListener("click", e => {
                 self.close();
@@ -9665,18 +9674,18 @@
     var importHandler, configCon;
     function initConfig(href) {
         if (location.hostname === "github.com") {
-            if (location.href.indexOf("https://github.com/hoothin/UserScripts/issues/new?labels=Pagetual&template=custom-rule-request.md&title=Request%20Pagetual%20support%20for%20") === 0) {
+            if (location.href.indexOf(ruleRequestUrl) === 0) {
                 let issue_body = document.getElementById("issue_body");
                 if (!issue_body) return true;
                 issue_body.value = issue_body.value.replace("\n", "\n" + location.hash.slice(1) + "\n");
                 let starButton = document.createElement("a");
-                starButton.href = "https://github.com/hoothin/UserScripts#star";
+                starButton.href = forkRepo + "#star";
                 starButton.className = "js-toggler-target rounded-left-2 btn-with-aria-count btn-sm btn";
                 setHTML(starButton, '<svg height="16" viewBox="0 0 16 16" version="1.1" width="16" class="octicon octicon-star d-inline-block mr-2"><path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.751.751 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Zm0 2.445L6.615 5.5a.75.75 0 0 1-.564.41l-3.097.45 2.24 2.184a.75.75 0 0 1 .216.664l-.528 3.084 2.769-1.456a.75.75 0 0 1 .698 0l2.77 1.456-.53-3.084a.75.75 0 0 1 .216-.664l2.24-2.183-3.096-.45a.75.75 0 0 1-.564-.41L8 2.694Z"></path></svg><span class="d-inline">Star</span>');
                 starButton.style.float = "right";
                 document.querySelector(".Layout-main>h2").appendChild(starButton);
                 return true;
-            } else if (location.href === "https://github.com/hoothin/UserScripts#star") {
+            } else if (location.href === forkRepo + "#star") {
                 let starButton = document.querySelector(".starring-container:not(.on)>.unstarred>form>button");
                 if (starButton) emuClick(starButton);
                 return true;
@@ -9696,7 +9705,7 @@
             }
         }
         if (!isGuidePage) {
-            if (location.hostname === "hoothin.github.io" || location.hostname === "pagetual.hoothin.com") isGuidePage = true;
+            if (location.hostname === new URL(guideBase).hostname) isGuidePage = true;
         }
         configCon = document.getElementById("configCon");
         if (configCon) {
@@ -10165,7 +10174,7 @@
         let customUrlsInput = document.createElement("textarea");
         customUrlsInput.style.width = "100%";
         customUrlsInput.style.position = "relative";
-        customUrlsInput.placeholder = "http://wedata.net/databases/AutoPagerize/items_all.json \nhttps://hoothin.github.io/UserScripts/Pagetual/pagetualRules.json";
+        customUrlsInput.placeholder = "http://wedata.net/databases/AutoPagerize/items_all.json \n" + rulesBase + "pagetualRules.json";
         customUrlsInput.spellcheck = false;
         configCon.appendChild(customUrlsInput);
 
@@ -10459,7 +10468,7 @@
             }, false, true);
         };
         let customRulesTitle = document.createElement("h2");
-        setHTML(customRulesTitle, i18n("customRules", /tree/.test(location.href) ? location.href.replace('tree', 'edit').replace(/\/$/, '') + '/pagetualRules.json' : 'https://github.com/hoothin/UserScripts/edit/master/Pagetual/pagetualRules.json'));
+        setHTML(customRulesTitle, i18n("customRules", /tree/.test(location.href) ? location.href.replace('tree', 'edit').replace(/\/$/, '') + '/pagetualRules.json' : forkRepo + '/edit/master/Pagetual/pagetualRules.json'));
         configCon.appendChild(customRulesTitle);
         customRulesInput = document.createElement("textarea");
         customRulesInput.spellcheck = false;
@@ -10719,7 +10728,7 @@
             return true;
         }
         async function needUpdate(url, id) {
-            if (!/^https:\/\/hoothin\.github\.io\/|\/hoothin\/UserScripts\/.*\/Pagetual\/pagetualRules\.json/i.test(url)) {
+            if (!url.startsWith(rulesBase) && !url.startsWith(rulesCdnBase)) {
                 return true;
             }
             let rulesLength = ruleParser.rules.reduce((acc, cur) => acc + (cur.from == id ? 1 : 0), 0);
@@ -10790,6 +10799,17 @@
                                     if (!retryJson) {
                                         allOk = false;
                                         fail(rule, retryErr);
+                                    }
+                                    addNextRule();
+                                });
+                                return;
+                            }
+                            if (rule.url.startsWith(rulesBase)) {
+                                // Pages unreachable: retry once via jsDelivr, without persisting the CDN URL.
+                                ruleParser.addRuleByUrl(rule.url.replace(rulesBase, rulesCdnBase), rule.id, (cdnJson, cdnErr) => {
+                                    if (!cdnJson) {
+                                        allOk = false;
+                                        fail(rule, cdnErr);
                                     }
                                     addNextRule();
                                 });
@@ -10912,7 +10932,7 @@
             /*0 wedata格式，1 pagetual格式*/
             ruleUrls = [{
                 id: 1,
-                url: data && data.wedata2github ? wedataMirrorRulesUrl : wedataRulesUrl,
+                url: (data || rulesData).wedata2github ? wedataMirrorRulesUrl : wedataRulesUrl,
                 type: 0
             }];
             if (data) {

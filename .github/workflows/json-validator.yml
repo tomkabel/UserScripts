@@ -1,21 +1,30 @@
-name: Validate JSON
+name: Validate Pagetual
 
 on:
+  push:
+    paths:
+      - 'Pagetual/**'
+      - '.github/scripts/validate-pagetual.mjs'
   pull_request:
     paths:
-      - 'Pagetual/pagetualRules.json'
+      - 'Pagetual/**'
+      - '.github/scripts/validate-pagetual.mjs'
 
 jobs:
-  validate-json:
+  validate:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: json-yaml-validate
-        uses: GrantBirki/json-yaml-validate@v5
-        id: json-yaml-validate
+      - uses: actions/setup-node@v4
         with:
-          json_schema: Pagetual/pagetual.schema.json
-          files: |
-            Pagetual/pagetualRules.json
+          node-version: 22
+
+      - name: Rule files (JSON, schema, size floors)
+        run: node .github/scripts/validate-pagetual.mjs files Pagetual
+
+      - name: No upstream URLs in fork script/README
+        run: node .github/scripts/validate-pagetual.mjs refs
+
+      - name: Userscript parses
+        run: node --check Pagetual/pagetual.user.js

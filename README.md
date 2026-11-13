@@ -8,7 +8,7 @@
 
 ---
 
-+ [Pagetual · 東方永頁機](https://pagetual.hoothin.com/ "Auto pager script to fetch next page automatically for infinity scroll. Pagetual 東方永頁機 东方永页机")
++ [Pagetual · 東方永頁機](https://tomkabel.github.io/PagetualGuide/ "Auto pager script to fetch next page automatically for infinity scroll. Pagetual 東方永頁機 东方永页机")
 
 + [SearchJumper · 搜尋醬](https://search.hoothin.com/ "Conduct searches for selected text/image effortlessly. Navigate to any search engine(Google/Bing/Custom) swiftly. SearchJumper 搜索酱 搜尋醬")
 

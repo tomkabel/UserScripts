@@ -1,12 +1,12 @@
-[☯️](https://greasyfork.org/scripts/438684 "Install from greasyfork")東方永頁機 [v.1.9.37.134](https://hoothin.github.io/UserScripts/Pagetual/pagetual.user.js "Latest version")
+[☯️](https://tomkabel.github.io/UserScripts/Pagetual/pagetual.user.js "Install")東方永頁機 [v.1.9.37.134.1](https://tomkabel.github.io/UserScripts/Pagetual/pagetual.user.js "Latest version")
 ==
 *Pagetual - Perpetual pages. Auto loading paginated web pages for 90% of all web sites !*
 
-<a name="otherconfig" title="For restricted environment" href="https://pagetual.hoothin.com/rule.html"><strong>🔧CONFIGURATION PAGE</strong></a>
+<a name="otherconfig" title="For restricted environment" href="https://tomkabel.github.io/PagetualGuide/rule.html"><strong>🔧CONFIGURATION PAGE</strong></a>
 
 <p name="click2import"></p>
 <pre name="pagetual">
-https://raw.githubusercontent.com/hoothin/UserScripts/master/Pagetual/pagetualRules.json
+https://tomkabel.github.io/UserScripts/Pagetual/pagetualRules.json
 </pre>
 
 ---
@@ -109,7 +109,7 @@ window.postMessage({ action: 'loadMore', command: 'patetual', detail: 0 }, '*');
 
  </details>
 
-[Rules example](https://pagetual.hoothin.com/en/rule.html)
+[Rules example](https://tomkabel.github.io/PagetualGuide/rule.html)
 ==
 ``` json
 [
@@ -147,34 +147,34 @@ Example url of this rule
 "example": "https://abc.com"
 ```
 
-[url](https://pagetual.hoothin.com/rules/url.html)
+[url](https://tomkabel.github.io/PagetualGuide/rules/url.html)
 --
 RegExp for the url of target site
 
-[nextLink](https://pagetual.hoothin.com/rules/nextLink.html)
+[nextLink](https://tomkabel.github.io/PagetualGuide/rules/nextLink.html)
 --
 Selector or xpath of next page link, disable when set to 0, you can let it to be a array to contains multiple next links. You may leave it empty because it will be generated automatically.
 
-[pageElement](https://pagetual.hoothin.com/rules/pageElement.html)
+[pageElement](https://tomkabel.github.io/PagetualGuide/rules/pageElement.html)
 --
 Selector or xpath of main content which need to insert, you can let it to be a array to contains multiple page elements. You may leave it empty because it will be generated automatically.
 
-[enable](https://pagetual.hoothin.com/rules/enable.html)
+[enable](https://tomkabel.github.io/PagetualGuide/rules/enable.html)
 --
 0 means stop action when all matched
 
-[include](https://pagetual.hoothin.com/rules/include.html)
+[include](https://tomkabel.github.io/PagetualGuide/rules/include.html)
 --
 Selector or xpath of the element which must include
 
-[exclude](https://pagetual.hoothin.com/rules/exclude.html)
+[exclude](https://tomkabel.github.io/PagetualGuide/rules/exclude.html)
 --
 Selector or xpath of the element which must not include
 
-[action](https://pagetual.hoothin.com/rules/action.html)
+[action](https://tomkabel.github.io/PagetualGuide/rules/action.html)
 --
 0 means load url and insert with static html, 1 means load by iframe so that dynamic javaScript code on page may effect, 2 means force insert iframe to bottom
 
-[loadMore](https://pagetual.hoothin.com/rules/loadMore.html)
+[loadMore](https://tomkabel.github.io/PagetualGuide/rules/loadMore.html)
 --
 Selector of "load more" button you want to auto click

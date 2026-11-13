@@ -11,7 +11,7 @@ on:
       - '.github/*'
       - '.github/*/*'
   workflow_run:
-    workflows: ["Update Version on File Change"]
+    workflows: ["Update Version on File Change", "Sync Pagetual rules from upstream"]
     types:
         - completed
 
@@ -37,6 +37,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Gate Pagetual rule files
+        run: node .github/scripts/validate-pagetual.mjs files Pagetual
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Build with Jekyll
@@ -58,3 +60,17 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  # Outside judge: what users actually download must be valid after every deploy.
+  verify:
+    runs-on: ubuntu-latest
+    needs: deploy
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate deployed Pagetual rules
+        run: |
+          for i in 1 2 3 4 5; do
+            node .github/scripts/validate-pagetual.mjs live "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/Pagetual/" && exit 0
+            sleep 30
+          done
+          exit 1
