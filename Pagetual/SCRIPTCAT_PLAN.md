@@ -255,3 +255,12 @@ Skipped by the plan's own conditions, with the measurement:
 
 Not covered: Firefox. Playwright cannot load an extension into Firefox; covering it needs `web-ext run` plus a
 Marionette driver. Live-site behaviour of the 682 rules is out of scope, as stated in Part 4.
+
+### Decisions settled (2026-11-13, tiltrank; payloads and log in `Pagetual/decisions/`)
+
+1. Phase 5: deferred. You confirmed the fork keeps syncing upstream, which rules out a fork-only module split.
+   No PR is planned.
+2. Multi-manager: keep all managers and test on ScriptCat. ScriptCat-only is excluded because Tampermonkey and
+   Violentmonkey need the `GM.*` grants.
+3. Harness: `Pagetual/test/scriptcat/` in this repo, the only option CI can run. A defect (F3) was found, so the
+   promotion condition is met.
